@@ -7,12 +7,11 @@ import (
 	"github.com/docker/docker/client"
 )
 
-func Build(ctx context.Context, cli *client.Client ) container.CreateResponse {
+func Build(ctx context.Context, cli client.Client, imageName string) container.CreateResponse {
 
 	resp, err := cli.ContainerCreate(ctx, &container.Config{
-		Image: "alpine",
+		Image: imageName,
 		Cmd:   []string{"echo", "hello world"},
-		Tty:   false,
 	}, nil, nil, nil, "")
 	if err != nil {
 		panic(err)

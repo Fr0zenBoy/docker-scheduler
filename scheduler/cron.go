@@ -1,19 +1,35 @@
 package scheduler
 
 import (
-	"io"
-	"os"
 	"time"
 
-	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/go-co-op/gocron"
 )
 
-func CreateTask(cron string, f io.ReadCloser) {
-	//exemple "*/1 * * * *"
+func NewCron() *gocron.Scheduler {
 	s := gocron.NewScheduler(time.Local)
-	s.Cron(cron).Do(f)
-	s.StartAsync()
+	s.TagsUnique()
+	return s 
+}
 
-	stdcopy.StdCopy(os.Stdout, os.Stderr, f)
+func AddCronJobs(s *gocron.Scheduler ,cron, taskName string, TaskFunc any) (*gocron.Job, error) {
+	job , err := s.Cron(cron).Tag(taskName).Do(TaskFunc)
+	if err != nil {
+		return nil, err
+		}
+	s.StartAsync()
+	return job, err
+}
+
+func GetCronJobs(s *gocron.Scheduler) []string {
+	var jobs []string
+	for _, tags := range s.Jobs() {
+		
+		return tags.Tags()
+	}
+	return jobs
+}
+
+func DeleteCronJob(s *gocron.Scheduler, tags ...string) error {
+	return s.RemoveByTags(tags...)
 }

@@ -5,12 +5,17 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
+
 	"github.com/Fr0zenBoy/docker-scheduler/scheduler"
+	"github.com/Fr0zenBoy/docker-scheduler/container"
+	fvd "github.com/docker/docker/api/types/container"
 )
 
 var task = func() {}
 
 func main() {
+
+	container.NewContainer("nginx", "test", fvd.Config{Tty: false}).RunContainer()
 
 	s := scheduler.NewCron()
 

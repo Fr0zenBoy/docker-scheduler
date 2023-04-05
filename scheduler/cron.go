@@ -2,12 +2,14 @@ package scheduler
 
 import (
 	"time"
-	"fmt"
 
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-co-op/gocron"
+	"github.com/Fr0zenBoy/docker-scheduler/container"
+	typeContainer "github.com/docker/docker/api/types/container"
+
 )
 
 type cronScheduler struct {
@@ -17,7 +19,10 @@ type cronScheduler struct {
 type payload struct {
 	TaskName string `json:"taskName"`
 	CronJob string `json:"cronJob"`
-	//TODO container stuffs
+	ImageName string `json:"imageName"`
+	ContainerName string `json:"containerName"`
+	ContainerConfig typeContainer.Config `json:"containerConfig"`
+
 }
 
 func addCronJobs(s *cronScheduler ,cron , taskName string, TaskFunc any) (*gocron.Job, error) {
@@ -54,14 +59,14 @@ func NewCron() *cronScheduler {
 	return gs
 }
 
-func (s *cronScheduler)LetJobs(c *gin.Context) {
+func (s *cronScheduler) LetJobs(c *gin.Context) {
 
 	c.JSON(http.StatusOK, map[string]interface{}{
 		"result": listCronJobs(s),
 	})
 }
 
-func (s *cronScheduler)AddJob(c *gin.Context) {
+func (s *cronScheduler) AddJob(c *gin.Context) {
 	body := payload{}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest,
@@ -72,11 +77,21 @@ func (s *cronScheduler)AddJob(c *gin.Context) {
 		return
 	}
 
-	job, err := addCronJobs(s, body.CronJob, body.TaskName, func () {fmt.Println("funciona!")}) //TODO function handler
+	err := container.NewContainer(body.ImageName, body.ContainerName, body.ContainerConfig).RunContainer()
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, map[string]interface{}{
+			"error": err.Error(),
+			"mesage": "fail to init a new container",
+		})
+		return
+	}
+	
+	job, err := addCronJobs(s, body.CronJob, body.TaskName, err)
 	if err != nil {
 
 		c.AbortWithStatusJSON(http.StatusInternalServerError, map[string]interface{}{
 			"error": err.Error(),
+			"mesage": "fail to create a new cron job",
 		})
 		return
 	}
@@ -84,12 +99,12 @@ func (s *cronScheduler)AddJob(c *gin.Context) {
 	c.JSON(http.StatusAccepted, map[string]interface{}{
 		"isRunningNow": job.IsRunning(),
 		"name": job.Tags(),
-		"next run": job.NextRun(),
+		"nextRun": job.NextRun(),
 	})
 	
 }
 
-func (s *cronScheduler)DeleteJob(c *gin.Context) {
+func (s *cronScheduler) DeleteJob(c *gin.Context) {
 	jobName := c.Param("jobname")
 
 	deleteCronJob(s, jobName)
